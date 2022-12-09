@@ -67,7 +67,7 @@ const uint64_t pipe = 0x1212121212LL;
 int8_t recv[30];
 int16_t PITCH = 0, ROLL = 0, YAW = 0, THROTTLE = 0;
 int16_t ROLL_in = 0, PITCH_in = 0, YAW_in = 0;
-float throttle_offset = 0,ROLL_offset = 0,PITCH_offset=0,YAW_offset=0;
+float throttle_offset = 0.0,ROLL_offset = 0,PITCH_offset=0,YAW_offset=0;
 float PWM_Scale = 0;
 int8_t ackData[30];
 int8_t flip1 = 1;
@@ -97,46 +97,8 @@ float Kp = 0,          // (P)roportional Tuning Parameter
       error_roll = 0,error_pitch=0,
       result_roll = 0,result_pitch=0,
       dInput_roll = 0,dInput_pitch=0,
-      Scale = 1;
+      Scale = 50;
      
-// PID Gain 변수 /
-float Roll_Err, Pitch_Err;
-
-float Roll_P, Pitch_P,Roll_I, Pitch_I, Roll_D, Pitch_D;
-float Roll_PID, Pitch_PID;
-
-float P_Gain = 3;  //2.35;  
-float I_Gain = 0.0;
-float D_Gain = 0.0;
-
-float P_Gain_Rate = 2;        //1.05;
-float PID_I_Gain_Roll  = 0;  //0.001;
-float PID_I_Gain_Pitch = 0;  ////0.001;
-float D_Gain_Rate =   5;     //14.0;
-
-float PID_Max_Roll  = 5;
-float PID_Max_Pitch = 5;
-
-float PID_P_Gain_Yaw = 25; //12.0;
-float PID_I_Gain_Yaw = 0.0001;
-float PID_D_Gain_Yaw = 0.03;
-
-float PID_I_Max_Yaw  = 150;
-float PID_Max_Yaw    = 150;
-
-float Roll_Rate_Err, Pitch_Rate_Err;
-float Roll_Rate_Err_Last, Pitch_Rate_Err_Last;
-
-float Roll_Rate_P, Roll_Rate_D, Roll_Rate_PID;
-float Pitch_Rate_P, Pitch_Rate_D, Pitch_Rate_PID;
-
-float PID_Output_Roll, PID_Output_Pitch, PID_Output_Yaw;
-
-float Yaw_Rate_PID;
-float PID_Error_Temp;
-
-float PID_Last_Roll_D_Error, PID_Last_Pitch_D_Error, PID_Last_Yaw_D_Error;
-float PID_I_Mem_Roll, PID_I_Mem_Pitch, PID_I_Mem_Yaw;
 // --------------------------------------------------------
 
 void WHO_AM_I()
@@ -323,8 +285,7 @@ void RF_READ()
         
         YAW = *(int16_t*)(&recv[4]) ; //                         offset = 2
         THROTTLE = *(int16_t*)(&recv[6]) ; //                    offset = 0
-        ROLL = *(int16_t*)(&recv[0]); //ROLL = - ROLL;           offset = 0
-        PITCH = *(int16_t*)(&recv[2]); //ROLL = - ROLL;           offset = 0
+        
 
         // pc.printf("\r RF_READ : ROLL : %d, PITCH : %d, YAW : %d, THROTTLE : %d \n\r", (int)ROLL, (int)PITCH, (int)YAW, (int)THROTTLE);
         PWM_Scale = 0.5;
@@ -334,39 +295,39 @@ void RF_READ()
         YAW_offset = PWM_Scale*(float)YAW*100 / 170;
 
         // Dead Zone 설정 - throttle & Yaw
-        if(throttle_offset > -D_Scale && throttle_offset < D_Scale){throttle_offset = 0;} 
-        if(YAW_offset > -D_Scale && YAW_offset < D_Scale){YAW_offset = 0;}
+        if(throttle_offset > -D_Scale && throttle_offset < D_Scale){ROLL_offset = 0;} 
+        if(YAW_offset > -D_Scale && YAW_offset < D_Scale){ROLL_offset = 0;}
 
-        if(BUT2 == 1 && BUT1 == 0){Kd += 0.01;}
-        else if(BUT1 == 1 && BUT2 == 0){Kp += 0.01;}
-        else if(BUT1 == 0 && BUT2 == 0){Kp = 0, Kd = 0;}
-        // if(BUT2==1 && BUT1 == 1){
-            
-        //     ROLL_offset = PWM_Scale*(float)ROLL*100 / 250;
+        if(BUT2==1 && BUT1 == 1){
+            ROLL = *(int16_t*)(&recv[0]); //ROLL = - ROLL;           offset = 0
+            ROLL_offset = PWM_Scale*(float)ROLL*100 / 250;
 
-            
-        //     PITCH_offset = PWM_Scale*(float)PITCH*100 / 250;
+            PITCH = *(int16_t*)(&recv[2]); //ROLL = - ROLL;           offset = 0
+            PITCH_offset = PWM_Scale*(float)PITCH*100 / 250;
 
-        //     // Dead Zone 설정 - Roll & Pitch
-        //     if(ROLL_offset > -D_Scale && ROLL_offset < D_Scale){ROLL_offset = 0;} 
-        //     if(PITCH_offset > -D_Scale && PITCH_offset < D_Scale){PITCH_offset = 0;}
-        // }
-        // else if(BUT2==0 && BUT1 == 1){
-        //     tmp_kp = PWM_Scale*(float)ROLL*100 / 250;
-        //     ROLL_offset = 0;
-        //     if(tmp_kp>40){Kp += 0.01;}
-        //     else if(tmp_kp<-40){Kp -= 0.01;}
-        // }
-        // else if(BUT1==0 && BUT2 == 1){
-        //     tmp_kd = PWM_Scale*(float)PITCH*100 / 250;
-        //     PITCH_offset = 0;
-        //     if(tmp_kd>40){Kd += 0.01;}
-        //     else if(tmp_kd<-40){Kd -= 0.01;}
-        // }
+            // Dead Zone 설정 - Roll & Pitch
+            if(ROLL_offset > -D_Scale && ROLL_offset < D_Scale){ROLL_offset = 0;} 
+            if(PITCH_offset > -D_Scale && PITCH_offset < D_Scale){PITCH_offset = 0;}
+        }
+        else if(BUT2==0 && BUT1 == 1){
+            ROLL = *(int16_t*)(&recv[0]);
+            tmp_kp = PWM_Scale*(float)ROLL*100 / 250;
+            ROLL_offset = 0;
+            if(tmp_kp>40){Kp += 0.1;}
+            else if(tmp_kp<-40){Kp -= 0.1;}
+        }
+        else if(BUT1==0 && BUT2 == 1){
+            PITCH = *(int16_t*)(&recv[0]);
+            tmp_kd = PWM_Scale*(float)PITCH*100 / 250;
+            PITCH_offset = 0;
+            if(tmp_kd>40){Kd += 0.1;}
+            else if(tmp_kd<-40){Kd -= 0.1;}
+        }
 
         // throttle_offset = (float)THROTTLE / 1159 ;
         // pc.printf("\r THROTTLE_OFFSET : %f", (int)THROTTLE / 1159);
         // pc.printf("\r THROTTLE_OFFSET : %f", throttle_offset);
+        rf_fail_count = 0;
         rf_fail_count = 0;
     }
 
@@ -401,16 +362,19 @@ void control_loop(void)
 
 
 // PID 함수 --------------------------------------------------------------------
+
 float pid_roll(float target, float current) {
 
+    // Roll 에러 (Angle Error)
     error_roll = target - current;
+    
     dInput_roll = current - oldValue_roll;
     oldValue_roll = current;
 
     //PID제어//
     pterm_roll = Kp * error_roll;
     // iterm = Ki * e * dt;
-    dterm_roll = -Kd * dInput_roll / dt;
+    dterm_roll = Kd * dInput_roll / dt;
 
     result_roll = pterm_roll +  dterm_roll;
 
@@ -427,7 +391,7 @@ float pid_pitch(float target, float current) {
     //PID제어//
     pterm_pitch = Kp * error_pitch;
     // iterm = Ki * e * dt;
-    dterm_pitch = -Kd * dInput_pitch / dt;
+    dterm_pitch = Kd * dInput_pitch / dt;
 
     result_pitch = pterm_pitch +  dterm_pitch;
 
@@ -435,53 +399,6 @@ float pid_pitch(float target, float current) {
 	// else if (result < -maxPID) result = -maxPID;
     return result_pitch/Scale;
 }
-// float pid_roll(float target, float current) {
-
-//     // Roll 에러 (Angle Error)
-//     error_roll = target - current;
-
-//     //각도 P 제어//
-//     Roll_PID = Kp * error_roll;
-
-//     // Inner PID Control using Angular Rate
-//     Roll_Rate_Err = Roll_PID + gyro_angle[0]; // 이후 부호 맞는지 확인해보기 ( )
-
-//     // 각속도 P 제어(Inner P Control)
-//     Roll_Rate_P = Roll_Rate_Err * P_Gain_Rate;
-
-//     // 각속도 D 제어(Inner D Control)
-//     Roll_Rate_D = (Roll_Rate_Err - Roll_Rate_Err_Last) * D_Gain_Rate;
-
-//     // Err Update
-//     Roll_Rate_Err_Last = Roll_Rate_Err;
-
-//     // Result
-//     Roll_PID = Roll_Rate_P + Roll_Rate_D;
-//     return Roll_PID/Scale;
-// }
-// float pid_pitch(float target, float current) {
-//     // Pitch 에러 (Angle Error)
-//     error_pitch = target - current;
-
-//     // 각도 P 제어
-//     Pitch_PID = Kp * error_pitch;
-
-//     // Inner PID Control using Angular Rate
-//     Pitch_Rate_Err = Pitch_PID + gyro_angle[1];
-
-//     // 각속도 P 제어(Inner P Control)
-//     Pitch_Rate_P = Pitch_Rate_Err * P_Gain_Rate;
-
-//     // 각속도 D 제어(Inner D Control)
-//     Pitch_Rate_D = (Pitch_Rate_Err - Pitch_Rate_Err_Last) * D_Gain_Rate;
-
-//     // Err Update
-//     Pitch_Rate_Err_Last = Pitch_Rate_Err;
-
-//     // Result
-//     Pitch_PID = Pitch_Rate_P + Pitch_Rate_D;
-//     return Pitch_PID/Scale;
-// }
 // ------------------------------------------------------------------------------
 
 
@@ -497,13 +414,10 @@ void activate(){
 
     MPU9250_GET_ACCEL(accel); // 가속도계 센서값 획득
     accel_f[0]=accel[0]/8192.0; 
-    if(accel_f[0] > 0.9){accel_f[0]=0.9;}
-    if(accel_f[0]<-0.9){accel_f[0]=-0.9;}
     accel_f[1]=-accel[1]/8192.0*(-1);
     accel_f[2]=-accel[2]/8192.0*(-1);
     roll_accel=atan(accel_f[1]/accel_f[2])*180.0/3.14;
-    // pitch_accel=atan(-1*accel_f[0]/sqrt(pow(accel_f[1],2)+pow(accel_f[2],2)))*180/3.14;
-    pitch_accel=asin(accel_f[0])*180.0/3.14;
+    pitch_accel=atan(-1*accel_f[0]/sqrt(pow(accel_f[1],2)+pow(accel_f[2],2)))*180/3.14;
     
     // 상보필터
     roll_g_n=(1-dt/tau)*roll_g_old+ dt*gyro_f[0];
@@ -549,16 +463,10 @@ void activate(){
     // ------------------------------------------------------------------------------
 
     // 3. PWM 출력 신호 Update
-    pwm1 = throttle_offset+ROLL_offset+PITCH_offset-YAW_offset-Roll_pid_in-Pitch_pid_in;
-    pwm2 = throttle_offset-ROLL_offset+PITCH_offset+YAW_offset+Roll_pid_in-Pitch_pid_in;
-    pwm3 = throttle_offset-ROLL_offset-PITCH_offset-YAW_offset+Roll_pid_in+Pitch_pid_in;
-    pwm4 = throttle_offset+ROLL_offset-PITCH_offset+YAW_offset-Roll_pid_in+Pitch_pid_in;
-
-    // // pid x
-    // pwm1 = throttle_offset+ROLL_offset+PITCH_offset-YAW_offset;
-    // pwm2 = throttle_offset-ROLL_offset+PITCH_offset+YAW_offset;
-    // pwm3 = throttle_offset-ROLL_offset-PITCH_offset-YAW_offset;
-    // pwm4 = throttle_offset+ROLL_offset-PITCH_offset+YAW_offset;
+    pwm1 = throttle_offset+ROLL_offset+PITCH_offset-YAW_offset-Roll_pid_in+Pitch_pid_in;
+    pwm2 = throttle_offset-ROLL_offset+PITCH_offset+YAW_offset+Roll_pid_in+Pitch_pid_in;
+    pwm3 = throttle_offset-ROLL_offset-PITCH_offset-YAW_offset+Roll_pid_in-Pitch_pid_in;
+    pwm4 = throttle_offset+ROLL_offset-PITCH_offset+YAW_offset-Roll_pid_in-Pitch_pid_in;
 
 
   
@@ -576,24 +484,23 @@ void activate(){
     if (int_pwm2 < 0) {int_pwm2 = 0;}
     if (int_pwm3 < 0) {int_pwm3 = 0;}
     if (int_pwm4 < 0) {int_pwm4 = 0;}
-    // servo1.pulsewidth_us(int_pwm1);
-    // servo2.pulsewidth_us(int_pwm2);
-    // servo3.pulsewidth_us(int_pwm3);
-    // servo4.pulsewidth_us(int_pwm4);
-    servo1.pulsewidth_us(0);
-    servo2.pulsewidth_us(0);
-    servo3.pulsewidth_us(0);
-    servo4.pulsewidth_us(0);
+    servo1.pulsewidth_us(int_pwm1);
+    servo2.pulsewidth_us(int_pwm2);
+    servo3.pulsewidth_us(int_pwm3);
+    servo4.pulsewidth_us(int_pwm4);
+    // servo1.pulsewidth_us(0);
+    // servo2.pulsewidth_us(0);
+    // servo3.pulsewidth_us(0);
+    // servo4.pulsewidth_us(0);
+
     if (cnt > 600){
     // pc.printf("\r\n%f %f",Roll_pid_in,Pitch_pid_in);
     // pc.printf("\rroll : %3.f pitch : %3.f",roll_c,pitch_c);
-        // pc.printf("\rKp : %3.1f Kd : %3.1f roll : %3.f pitch : %3.f",Kp,Kd,roll_c,pitch_c);
+        pc.printf("\rKp : %3.1f Kd : %3.1f roll : %3.f pitch : %3.f",Kp,Kd,roll_c,pitch_c);
         // pc.printf("\rpwm1 : %4d pwm2 : %4d pwm3 : %4d pwm4 : %4d ",int_pwm1,int_pwm2,int_pwm3,int_pwm4);
-        // pc.printf("\rKp : %3.1f Kd : %3.1f roll pid in : %4.2f pitch pid in : %4.2f roll c : %3.3f pitch c : %3.3f",Kp,Kd,Roll_pid_in,Pitch_pid_in,roll_c,pitch_c);
-        pc.printf("\rKp %2.2f Kd %2.2f roll pid %3.3f pitch pid %3.3f",Kp,Kd,Roll_pid_in,Pitch_pid_in);
+        // pc.printf("\r%f %f",Roll_pid_in,Pitch_pid_in);
 
-
-    // pc.printf("\rpwm1 : %d pwm2 : %d pwm3 : %d pwm4 : %d ROLL : %d PITCH : %d YAW : %d THROTTLE : %d",int_pwm1,int_pwm2,int_pwm3,int_pwm4,ROLL,PITCH,YAW,THROTTLE);
+    // pc.printf("\rpwm1 : %d pwm2 : %d pwm3 : %d pwm4 : %d roll pid in : %f pitch pid in : %f roll : %f pitch : %f",int_pwm1,int_pwm2,int_pwm3,int_pwm4,Roll_pid_in,Pitch_pid_in,roll_c,pitch_c);
     }
     // pc.printf("\rthrottle offset : %f Roll offset : %f Pitch offset : %f Yaw offset : %f Roll pid in : %f Pitch pid in : %f",
     //             throttle_offset,ROLL_offset,PITCH_offset,YAW_offset,Roll_pid_in,Pitch_pid_in);
@@ -669,7 +576,6 @@ int main() {
     servo2.period_us(100);          
     servo3.period_us(100);          
     servo4.period_us(100);
-
     RF_loop.attach_us(&RF_READ, 50000); // RF 통신 코드를 20 Hz(50000us) 주기로 실행
     pid_loop.attach_us(&activate,10000); // 1.각도추정, 2. PID, 3. PWM 이 포함된 함수 activate를 100Hz(10000us) 주기로 실행
     }
